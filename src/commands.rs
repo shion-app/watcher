@@ -1,13 +1,12 @@
 use tauri::{AppHandle, command, Runtime, State, Window};
 
-use crate::{MyState, Result};
+use crate::{MyState, Result, windows::{Program, self}};
 
 #[command]
-pub(crate) async fn execute<R: Runtime>(
+pub(crate) async fn get_program_list<R: Runtime>(
   _app: AppHandle<R>,
   _window: Window<R>,
   state: State<'_, MyState>,
-) -> Result<String> {
-  state.0.lock().unwrap().insert("key".into(), "value".into());
-  Ok("success".to_string())
+) -> Result<Vec<Program>> {
+  windows::get_program_list()
 }

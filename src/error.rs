@@ -6,9 +6,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
   #[error(transparent)]
   Io(#[from] std::io::Error),
+
   #[cfg(mobile)]
   #[error(transparent)]
   PluginInvoke(#[from] tauri::plugin::mobile::PluginInvokeError),
+
+  #[error(transparent)]
+  SerializeJSON(#[from] serde_json::Error),
 }
 
 impl Serialize for Error {

@@ -15,6 +15,7 @@ mod mobile;
 mod commands;
 mod error;
 mod models;
+mod windows;
 
 pub use error::{Error, Result};
 
@@ -40,7 +41,7 @@ impl<R: Runtime, T: Manager<R>> crate::ShionWatcherExt<R> for T {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("shion-watcher")
-    .invoke_handler(tauri::generate_handler![commands::execute])
+    .invoke_handler(tauri::generate_handler![commands::get_program_list])
     .setup(|app, api| {
       #[cfg(mobile)]
       let shion_watcher = mobile::init(app, api)?;
