@@ -8,5 +8,8 @@ pub(crate) async fn get_program_list<R: Runtime>(
   _window: Window<R>,
   state: State<'_, MyState>,
 ) -> Result<Vec<Program>> {
-  windows::get_program_list()
+  #[cfg(windows)]
+  return windows::get_program_list();
+
+  Ok(vec![])
 }
