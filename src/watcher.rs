@@ -26,7 +26,7 @@ pub struct Watcher<R: Runtime> {
 struct Program {
     path: String,
     is_audio: bool,
-    timer: Arc<Timer>,
+    timer: Timer,
 }
 
 #[derive(Debug)]
@@ -70,6 +70,7 @@ impl<R: Runtime> Watcher<R> {
         if !event.active {
             if let Some(index) = index {
                 if event.is_audio || !pool[index].is_audio {
+                    drop(pool);
                     self.remove(index);
                 }
             }
@@ -78,6 +79,7 @@ impl<R: Runtime> Watcher<R> {
         if let Some(index) = index {
             let program = &mut pool[index];
             program.is_audio = event.is_audio;
+            drop(pool);
             self.reset_timer(index);
         } else {
             let mut list = vec![];
@@ -86,6 +88,7 @@ impl<R: Runtime> Watcher<R> {
                     list.push(i);
                 }
             }
+            drop(pool);
             for i in list {
                 self.remove(i)
             }
@@ -96,11 +99,11 @@ impl<R: Runtime> Watcher<R> {
                     let pool = watcher.pool.lock();
                     let index = pool.iter().position(|p| p.path == path);
                     if let Some(index) = index {
+                        drop(pool);
                         watcher.remove(index);
                     }
                 }
             });
-            timer.start();
             self.add(Program {
                 path: event.path,
                 is_audio: event.is_audio,
@@ -109,17 +112,21 @@ impl<R: Runtime> Watcher<R> {
         }
     }
 
-    fn remove(self: &Arc<Self>, index: usize) {
+    fn remove(&self, index: usize) {
         let mut pool = self.pool.lock();
+        let path = pool[index].path.clone();
         pool.remove(index);
+        debug!("remove program: {}", path);
     }
 
-    fn add(self: &Arc<Self>, program: Program) {
+    fn add(&self, program: Program) {
         let mut pool = self.pool.lock();
+        let path = program.path.clone();
         pool.push(program);
+        debug!("add program: {}", path);
     }
 
-    fn reset_timer(self: &Arc<Self>, index: usize) {
+    fn reset_timer(&self, index: usize) {
         let  pool = self.pool.lock();
         let program = &pool[index];
         program.timer.reset();
@@ -129,8 +136,9 @@ impl<R: Runtime> Watcher<R> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_run() {
-        // Watcher::run();
-    }
+    // #[test]
+    // fn test_watcher_run() {
+    //     let watcher = Watcher::new();
+    //     watcher.run()
+    // }
 }

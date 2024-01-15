@@ -1,43 +1,51 @@
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use parking_lot::Mutex;
+
 pub struct Timer {
-    timeout: Duration,
-    callback: Box<dyn Fn() + Send + Sync + 'static>,
-    start_time: Mutex<Instant>,
+    start_time: Arc<Mutex<Instant>>,
+    done: Arc<AtomicBool>,
 }
 
 impl Timer {
-    pub fn new<F>(timeout: Duration, callback: F) -> Arc<Self>
+    pub fn new<F>(timeout: Duration, callback: F) -> Self
     where
         F: Fn() + Send + Sync + 'static,
     {
-        Arc::new(Self {
-            timeout,
-            callback: Box::new(callback),
-            start_time: Mutex::new(Instant::now()),
-        })
-    }
+        let start_time = Arc::new(Mutex::new(Instant::now()));
+        let done = Arc::new(AtomicBool::new(false));
 
-    pub fn start(self: &Arc<Self>) {
-        let timer = Arc::clone(self);
-        thread::spawn(move || loop {
-            let elapsed_time = Instant::now() - *timer.start_time.lock().unwrap();
-            if elapsed_time >= timer.timeout {
-                (timer.callback)();
-                break;
+        thread::spawn({
+            let start_time = Arc::clone(&start_time);
+            let done = done.clone();
+            move || {
+                while !done.load(Ordering::Relaxed) {
+                    let elapsed_time = Instant::now() - *start_time.lock();
+                    if elapsed_time >= timeout {
+                        callback();
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(100));
+                }
             }
-            thread::sleep(Duration::from_millis(100));
         });
+
+        Self { start_time, done }
     }
 
-    pub fn reset(self: &Arc<Self>) {
-        let timer = Arc::clone(self);
-        *timer.start_time.lock().unwrap() = Instant::now();
+    pub fn reset(&self) {
+        *self.start_time.lock() = Instant::now();
     }
 }
 
+impl Drop for Timer {
+    fn drop(&mut self) {
+        self.done.store(true, Ordering::Relaxed);
+    }
+}
 
 mod tests {
     use super::*;
@@ -49,12 +57,10 @@ mod tests {
             println!("{:?}", Instant::now());
         });
         println!("{:?}", Instant::now());
-        timer.start();
         println!("start");
         thread::sleep(Duration::from_secs(1));
+        println!("restart {:?}", Instant::now());
         timer.reset();
-        loop {
-            
-        }
+        loop {}
     }
 }

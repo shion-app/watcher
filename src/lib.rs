@@ -3,7 +3,7 @@ use tauri::{
   Manager, Runtime,
 };
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, sync::Mutex, thread};
 
 #[macro_use]
 extern crate log;
@@ -58,10 +58,13 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       app.manage(shion_watcher);
 
       #[cfg(desktop)]
-      {
-        let mut watcher = watcher::Watcher::new(app.clone());
-        watcher.run();
+      thread::spawn({
+        let app = app.clone();
+        || {
+          let watcher = watcher::Watcher::new(app);
+          watcher.run();
       }
+      });
 
       // manage state so it is accessible by the commands
       app.manage(MyState::default());
