@@ -18,8 +18,11 @@ mod mobile;
 mod commands;
 mod error;
 mod models;
-mod windows;
 mod event;
+mod watcher;
+
+#[cfg(target_os = "windows")]
+mod windows;
 
 pub use error::{Error, Result};
 
@@ -57,7 +60,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       thread::spawn({
         let app = app.clone();
         || {
-        event::run(app);
+        // watcher::Watcher::run(app);
       }
       });
 

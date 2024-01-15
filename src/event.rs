@@ -1,31 +1,20 @@
-use rdev::{listen, Event, EventType};
-use tauri::{AppHandle, Runtime, Manager};
+use rdev::{listen, Event, EventType, ListenError};
 
 #[cfg(target_os = "windows")]
 use crate::windows;
 
-fn throttle<F>(func: F, limit: u64) -> impl FnMut(String)
-where
-    F: FnMut(String) + 'static,
-{
-    let mut last_call = std::time::Instant::now() - std::time::Duration::from_millis(limit);
-    let mut last_path = String::new();
-    let mut func = Box::new(func);
-    move |path| {
-        if last_call.elapsed().as_millis() as u64 >= limit || path != last_path {
-            func(path.clone());
-            last_call = std::time::Instant::now();
-            last_path = path.clone();
-        }
-    }
-}
+use crate::watcher::{WATCHER_EVENT_CHANNEL, WatcherEvent};
 
-pub fn run<R: Runtime>(app: AppHandle<R>) {
-    let mut activate = throttle(move |path: String| {
-        app.emit("plugin:shion-watcher://window-activate", path).unwrap();
-    }, 200);
+pub fn run() -> Result<(), ListenError> {
+    let  activate =  |path: String| {
+        let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
+        path,
+        is_audio: false,
+        active: true
+    });
+    };
 
-    if let Err(error) = listen(move |event: Event| {
+    listen(move |event: Event| {
         match event.event_type {
             EventType::KeyPress(_) | EventType::KeyRelease(_) => {
                 #[cfg(target_os = "windows")]
@@ -45,7 +34,5 @@ pub fn run<R: Runtime>(app: AppHandle<R>) {
             }
             _ => {}
         };
-    }) {
-        error!("rdev error: {:?}", error)
-    }
+    })
 }

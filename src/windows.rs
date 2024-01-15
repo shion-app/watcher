@@ -1,9 +1,10 @@
 use std::{process::Command, ffi::OsStr};
 
 use serde::{Deserialize, Serialize};
-use windows::{Win32::{Foundation::{HWND, MAX_PATH, SUCCESS, POINT}, UI::WindowsAndMessaging::{GetWindowModuleFileNameW, GetCursorPos, WindowFromPoint, GetForegroundWindow, GetWindowThreadProcessId}, System::Threading::{GetProcessId, PROCESS_QUERY_INFORMATION, OpenProcess, PROCESS_VM_READ, QueryFullProcessImageNameW, PROCESS_NAME_WIN32}}, core::PWSTR};
+use windows::{Win32::{Foundation::{HWND, MAX_PATH, POINT, GetLastError}, UI::{WindowsAndMessaging::{GetCursorPos, WindowFromPoint, GetForegroundWindow, GetWindowThreadProcessId, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT, MSG, GetMessageW, TranslateMessage, DispatchMessageW}, Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent}}, System::Threading::{GetProcessId, PROCESS_QUERY_INFORMATION, OpenProcess, PROCESS_VM_READ, QueryFullProcessImageNameW, PROCESS_NAME_WIN32}}, core::PWSTR};
+use anyhow::bail;
 
-use crate::Result;
+use crate::{Result, watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL}};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Program {
@@ -76,6 +77,96 @@ pub fn get_foreground_program_path() -> Option<String> {
 }
 
 
+#[derive(Debug)]
+struct Watcher {
+    hook: HWINEVENTHOOK,
+}
+
+impl Watcher {
+    pub fn init() -> anyhow::Result<Self> {
+        let hook = unsafe {
+            SetWinEventHook(
+                EVENT_SYSTEM_FOREGROUND,
+                EVENT_SYSTEM_FOREGROUND,
+                None,
+                Some(win_event_proc),
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT,
+            )
+        };
+        if hook.is_invalid() {
+            bail!("watcher SetWinEventHook error");
+        }
+        info!("watcher start");
+        Ok(Self { hook })
+    }
+}
+
+impl Drop for Watcher {
+    fn drop(&mut self) {
+        debug!("watcher drop");
+        if !self.hook.is_invalid() {
+            unsafe { UnhookWinEvent(self.hook) };
+        }
+    }
+}
+
+unsafe extern "system" fn win_event_proc(
+    _h_win_event_hook: HWINEVENTHOOK,
+    event: u32,
+    hwnd: HWND,
+    id_object: i32,
+    _id_child: i32,
+    _dw_event_thread: u32,
+    _dwms_event_time: u32,
+) {
+    if id_object != 0 {
+        return;
+    }
+
+    let path = get_program_path(hwnd);
+    if path.is_none() {
+        return;
+    }
+    let path = path.unwrap();
+
+    // println!("event: {:?}, path: {}", event, path);
+    let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
+        path,
+        is_audio: false,
+        active: true
+    });
+}
+
+pub struct App;
+
+impl App {
+    fn eventloop() -> anyhow::Result<()> {
+        let mut message = MSG::default();
+        loop {
+            let ret = unsafe { GetMessageW(&mut message, HWND(0), 0, 0) };
+            match ret.0 {
+                -1 => {
+                    unsafe { GetLastError() }?;
+                }
+                0 => break,
+                _ => unsafe {
+                    TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                },
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn start() -> anyhow::Result<()> {
+        let _watcher = Watcher::init()?;
+        Self::eventloop()
+    }
+}
+
 
 mod tests {
     use super::*;
@@ -84,5 +175,12 @@ mod tests {
     fn test_get_program_list() {
         let list = get_program_list();
         println!("{:?}", list);
+    }
+
+        #[test]
+    fn test_app() {
+        if let Err(err) = App::start() {
+            error!("watcher error: {}", err);
+        }
     }
 }
