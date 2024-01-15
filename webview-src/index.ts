@@ -7,10 +7,16 @@ interface Program {
   icon: Array<number>
 }
 
-export  function getProgramList() {
-  return  invoke<Array<Program>>('plugin:shion-watcher|get_program_list')
+interface WindowStatus {
+  path: string,
+  active: boolean,
+  time: number
 }
 
-export function onWindowActivate(fn: EventCallback<string>) {
-  return listen('plugin:shion-watcher://window-activate', fn)
+export function getProgramList() {
+  return invoke<Array<Program>>('plugin:shion-watcher|get_program_list')
+}
+
+export function onStatusChanged(fn: EventCallback<WindowStatus>) {
+  return listen('plugin:shion-watcher://status-changed', fn)
 }

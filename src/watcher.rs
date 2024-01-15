@@ -6,7 +6,9 @@ use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use tauri::{AppHandle, Runtime};
+use serde::Serialize;
+use tauri::{AppHandle, Runtime, Manager};
+use chrono::prelude::*;
 
 use crate::event;
 use crate::timer::Timer;
@@ -16,6 +18,15 @@ use crate::windows;
 lazy_static! {
     pub static ref WATCHER_EVENT_CHANNEL: Arc<Mutex<(Sender<WatcherEvent>, Receiver<WatcherEvent>)>> =
         Arc::new(Mutex::new(crossbeam_channel::unbounded()));
+}
+
+static EVENT_STATUS_CHANGED: &'static str = "plugin:shion-watcher://status-changed";
+
+#[derive(Serialize, Clone)]
+struct WindowStatus {
+    path: String,
+    active: bool,
+    time: i64
 }
 
 pub struct Watcher<R: Runtime> {
@@ -116,6 +127,11 @@ impl<R: Runtime> Watcher<R> {
         let mut pool = self.pool.lock();
         let path = pool[index].path.clone();
         pool.remove(index);
+        self.app.emit(EVENT_STATUS_CHANGED, WindowStatus {
+            path: path.clone(),
+            active: false,
+            time: Utc::now().timestamp_millis()
+        }).unwrap();
         debug!("remove program: {}", path);
     }
 
@@ -123,6 +139,11 @@ impl<R: Runtime> Watcher<R> {
         let mut pool = self.pool.lock();
         let path = program.path.clone();
         pool.push(program);
+        self.app.emit(EVENT_STATUS_CHANGED, WindowStatus {
+            path: path.clone(),
+            active: true,
+            time: Utc::now().timestamp_millis()
+        }).unwrap();
         debug!("add program: {}", path);
     }
 
