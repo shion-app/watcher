@@ -110,8 +110,10 @@ impl<R: Runtime> Watcher<R> {
                     let pool = watcher.pool.lock();
                     let index = pool.iter().position(|p| p.path == path);
                     if let Some(index) = index {
-                        drop(pool);
-                        watcher.remove(index);
+                        if !pool[index].is_audio {
+                            drop(pool);
+                            watcher.remove(index);
+                        }
                     }
                 }
             });
