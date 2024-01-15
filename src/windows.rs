@@ -1,5 +1,6 @@
 use std::{process::Command, ffi::OsStr};
 
+use nodio_win32::{Win32Context, AudioSessionEvent, SessionState};
 use serde::{Deserialize, Serialize};
 use windows::{Win32::{Foundation::{HWND, MAX_PATH, POINT, GetLastError}, UI::{WindowsAndMessaging::{GetCursorPos, WindowFromPoint, GetForegroundWindow, GetWindowThreadProcessId, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT, MSG, GetMessageW, TranslateMessage, DispatchMessageW}, Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent}}, System::Threading::{GetProcessId, PROCESS_QUERY_INFORMATION, OpenProcess, PROCESS_VM_READ, QueryFullProcessImageNameW, PROCESS_NAME_WIN32}}, core::PWSTR};
 use anyhow::bail;
@@ -163,8 +164,23 @@ impl App {
 
     pub fn start() -> anyhow::Result<()> {
         let _watcher = Watcher::init()?;
+        watch_audio();
         Self::eventloop()
     }
+}
+
+fn watch_audio() {
+    Win32Context::new(|event, path| match event {
+        AudioSessionEvent::StateChange(state) => {
+            let active = state == SessionState::Active;
+            let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
+                path,
+                is_audio: true,
+                active
+            });
+        }
+        _ => {}
+    });
 }
 
 
@@ -180,7 +196,7 @@ mod tests {
         #[test]
     fn test_app() {
         if let Err(err) = App::start() {
-            error!("watcher error: {}", err);
+            println!("watcher error: {}", err);
         }
     }
 }
