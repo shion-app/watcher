@@ -54,7 +54,7 @@ impl<R: Runtime> Watcher<R> {
         Arc::new(Self {
             app,
             pool: Mutex::new(vec![]),
-            running: RwLock::new(true)
+            running: RwLock::new(false)
         })
     }
 
