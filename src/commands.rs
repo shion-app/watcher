@@ -32,11 +32,11 @@ pub(crate) fn resume<R: Runtime>(
   state.watcher.resume();
 }
 #[command]
-pub(crate) fn check_watched<R: Runtime>(
+pub(crate) fn is_active<R: Runtime>(
   _app: AppHandle<R>,
   _window: Window<R>,
   state: State<'_, MyState<R>>,
   path: String
 )  -> bool {
-  state.watcher.check_watched(path)
+  state.watcher.is_active(path)
 }

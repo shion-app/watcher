@@ -56,7 +56,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::get_program_list,
       commands::suspend,
       commands::resume,
-      commands::check_watched,
+      commands::is_active,
       ])
     .setup(|app, api| {
       #[cfg(mobile)]

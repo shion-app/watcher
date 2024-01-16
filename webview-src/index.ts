@@ -25,8 +25,10 @@ export function resume() {
   return invoke('plugin:shion-watcher|resume')
 }
 
-export function checkWatched() {
-  return invoke<boolean>('plugin:shion-watcher|check_watched')
+export function isActive(path: string) {
+  return invoke<boolean>('plugin:shion-watcher|is_active', {
+    path
+  })
 }
 
 export function onStatusChanged(fn: EventCallback<WindowStatus>) {

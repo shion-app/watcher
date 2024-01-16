@@ -78,6 +78,7 @@ impl<R: Runtime> Watcher<R> {
                 }
                 self.handle(event);
             }
+            thread::sleep(Duration::from_millis(1000 / 60));
         }
     }
 
@@ -171,7 +172,7 @@ impl<R: Runtime> Watcher<R> {
         *self.running.write() = true;
     }
 
-    pub fn check_watched(&self, path: String) -> bool {
+    pub fn is_active(&self, path: String) -> bool {
         let  pool = self.pool.lock();
         pool.iter().find(|p| p.path == path).is_some()
     }
