@@ -17,6 +17,18 @@ export function getProgramList() {
   return invoke<Array<Program>>('plugin:shion-watcher|get_program_list')
 }
 
+export function suspend() {
+  return invoke('plugin:shion-watcher|suspend')
+}
+
+export function resume() {
+  return invoke('plugin:shion-watcher|resume')
+}
+
+export function checkWatched() {
+  return invoke('plugin:shion-watcher|check_watched')
+}
+
 export function onStatusChanged(fn: EventCallback<WindowStatus>) {
   return listen('plugin:shion-watcher://status-changed', fn)
 }

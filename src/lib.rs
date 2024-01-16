@@ -3,7 +3,7 @@ use tauri::{
   Manager, Runtime,
 };
 
-use std::{collections::HashMap, sync::Mutex, thread};
+use std::{collections::HashMap, sync::{Mutex, Arc}, thread};
 
 #[macro_use]
 extern crate log;
@@ -22,6 +22,8 @@ mod event;
 mod watcher;
 mod timer;
 
+use watcher::Watcher;
+
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -32,8 +34,9 @@ use desktop::ShionWatcher;
 #[cfg(mobile)]
 use mobile::ShionWatcher;
 
-#[derive(Default)]
-struct MyState(Mutex<HashMap<String, String>>);
+struct MyState<R: Runtime> {
+  watcher: Arc<Watcher<R>>
+}
 
 /// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the shion-watcher APIs.
 pub trait ShionWatcherExt<R: Runtime> {
@@ -49,7 +52,12 @@ impl<R: Runtime, T: Manager<R>> crate::ShionWatcherExt<R> for T {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("shion-watcher")
-    .invoke_handler(tauri::generate_handler![commands::get_program_list])
+    .invoke_handler(tauri::generate_handler![
+      commands::get_program_list,
+      commands::suspend,
+      commands::resume,
+      commands::check_watched,
+      ])
     .setup(|app, api| {
       #[cfg(mobile)]
       let shion_watcher = mobile::init(app, api)?;
@@ -57,17 +65,20 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       let shion_watcher = desktop::init(app, api)?;
       app.manage(shion_watcher);
 
+      let watcher = Watcher::new(app.clone());
+
       #[cfg(desktop)]
       thread::spawn({
-        let app = app.clone();
-        || {
-          let watcher = watcher::Watcher::new(app);
+        let watcher = watcher.clone();
+        move || {
           watcher.run();
       }
       });
 
       // manage state so it is accessible by the commands
-      app.manage(MyState::default());
+      app.manage(MyState {
+        watcher
+      });
       Ok(())
     })
     .build()

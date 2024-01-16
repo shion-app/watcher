@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -5,7 +6,7 @@ use std::time::Duration;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use lazy_static::lazy_static;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use serde::Serialize;
 use tauri::{AppHandle, Runtime, Manager};
 use chrono::prelude::*;
@@ -32,6 +33,7 @@ struct WindowStatus {
 pub struct Watcher<R: Runtime> {
     app: AppHandle<R>,
     pool: Mutex<Vec<Program>>,
+    running: RwLock<bool>
 }
 
 struct Program {
@@ -52,6 +54,7 @@ impl<R: Runtime> Watcher<R> {
         Arc::new(Self {
             app,
             pool: Mutex::new(vec![]),
+            running: RwLock::new(true)
         })
     }
 
@@ -70,6 +73,9 @@ impl<R: Runtime> Watcher<R> {
 
         loop {
             if let Ok(event) = WATCHER_EVENT_CHANNEL.lock().1.try_recv() {
+                if !*self.running.read() {
+                    continue;
+                }
                 self.handle(event);
             }
         }
@@ -153,6 +159,21 @@ impl<R: Runtime> Watcher<R> {
         let  pool = self.pool.lock();
         let program = &pool[index];
         program.timer.reset();
+    }
+
+    pub fn suspend(&self) {
+        *self.running.write() = false;
+        let mut pool = self.pool.lock();
+        pool.clear();
+    }
+
+    pub fn resume(&self) {
+        *self.running.write() = true;
+    }
+
+    pub fn check_watched(&self, path: String) -> bool {
+        let  pool = self.pool.lock();
+        pool.iter().find(|p| p.path == path).is_some()
     }
 }
 
