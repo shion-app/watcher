@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { EventCallback, listen } from '@tauri-apps/api/event'
 
-interface Program {
+export interface Program {
   name: string
   path: string
   icon: Array<number>

@@ -1,5 +1,5 @@
 import { EventCallback } from '@tauri-apps/api/event';
-interface Program {
+export interface Program {
     name: string;
     path: string;
     icon: Array<number>;
