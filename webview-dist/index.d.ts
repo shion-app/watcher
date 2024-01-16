@@ -4,6 +4,13 @@ interface Program {
     path: string;
     icon: Array<number>;
 }
+interface WindowStatus {
+    path: string;
+    active: boolean;
+    time: number;
+}
 export declare function getProgramList(): Promise<Program[]>;
-export declare function onWindowActivate(fn: EventCallback<string>): Promise<import("@tauri-apps/api/event").UnlistenFn>;
+export declare function suspend(): Promise<unknown>;
+export declare function resume(): Promise<unknown>;
+export declare function onStatusChanged(fn: EventCallback<WindowStatus>): Promise<import("@tauri-apps/api/event").UnlistenFn>;
 export {};
