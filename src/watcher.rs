@@ -96,7 +96,9 @@ impl<R: Runtime> Watcher<R> {
         }
         if let Some(index) = index {
             let program = &mut pool[index];
-            program.is_audio = event.is_audio;
+            if event.is_audio {
+                program.is_audio = true;
+            }
             drop(pool);
             self.reset_timer(index);
         } else {
@@ -107,6 +109,7 @@ impl<R: Runtime> Watcher<R> {
                 }
             }
             drop(pool);
+            list.reverse();
             for i in list {
                 self.remove(i)
             }
