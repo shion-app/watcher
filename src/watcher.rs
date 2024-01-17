@@ -19,6 +19,8 @@ use crate::windows;
 lazy_static! {
     pub static ref WATCHER_EVENT_CHANNEL: Arc<Mutex<(Sender<WatcherEvent>, Receiver<WatcherEvent>)>> =
         Arc::new(Mutex::new(crossbeam_channel::unbounded()));
+    pub static ref WATCHER_STATUS_CHANNEL: Arc<Mutex<(Sender<WatcherStatus>, Receiver<WatcherStatus>)>> =
+        Arc::new(Mutex::new(crossbeam_channel::unbounded()));
 }
 
 static EVENT_STATUS_CHANGED: &'static str = "plugin:shion-watcher://status-changed";
@@ -47,6 +49,10 @@ pub struct WatcherEvent {
     pub path: String,
     pub is_audio: bool,
     pub active: bool,
+}
+
+pub struct WatcherStatus {
+    pub running: bool
 }
 
 impl<R: Runtime> Watcher<R> {
@@ -169,10 +175,12 @@ impl<R: Runtime> Watcher<R> {
         *self.running.write() = false;
         let mut pool = self.pool.lock();
         pool.clear();
+        let _ = WATCHER_STATUS_CHANNEL.lock().0.send(WatcherStatus { running: false });
     }
 
     pub fn resume(&self) {
         *self.running.write() = true;
+        let _ = WATCHER_STATUS_CHANNEL.lock().0.send(WatcherStatus { running: true });
     }
 
     pub fn is_active(&self, path: String) -> bool {

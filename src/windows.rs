@@ -1,11 +1,12 @@
-use std::{process::Command, ffi::OsStr};
+use std::{process::Command, ffi::OsStr, sync::Arc, thread, time::Duration};
 
 use nodio_win32::{Win32Context, AudioSessionEvent, SessionState};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use windows::{Win32::{Foundation::{HWND, MAX_PATH, POINT, GetLastError}, UI::{WindowsAndMessaging::{GetCursorPos, WindowFromPoint, GetForegroundWindow, GetWindowThreadProcessId, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT, MSG, GetMessageW, TranslateMessage, DispatchMessageW}, Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent}}, System::Threading::{GetProcessId, PROCESS_QUERY_INFORMATION, OpenProcess, PROCESS_VM_READ, QueryFullProcessImageNameW, PROCESS_NAME_WIN32}}, core::PWSTR};
+use windows::{Win32::{Foundation::{HWND, MAX_PATH, POINT, GetLastError}, UI::{WindowsAndMessaging::{GetCursorPos, WindowFromPoint, GetForegroundWindow, GetWindowThreadProcessId, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT, MSG, GetMessageW, TranslateMessage, DispatchMessageW}, Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent}}, System::Threading::{PROCESS_QUERY_INFORMATION, OpenProcess, PROCESS_VM_READ, QueryFullProcessImageNameW, PROCESS_NAME_WIN32}}, core::PWSTR};
 use anyhow::bail;
 
-use crate::{Result, watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL}};
+use crate::{Result, watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL, WATCHER_STATUS_CHANNEL}};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Program {
@@ -115,7 +116,7 @@ impl Drop for Watcher {
 
 unsafe extern "system" fn win_event_proc(
     _h_win_event_hook: HWINEVENTHOOK,
-    event: u32,
+    _event: u32,
     hwnd: HWND,
     id_object: i32,
     _id_child: i32,
@@ -132,7 +133,6 @@ unsafe extern "system" fn win_event_proc(
     }
     let path = path.unwrap();
 
-    // println!("event: {:?}, path: {}", event, path);
     let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
         path,
         is_audio: false,
@@ -170,16 +170,33 @@ impl App {
 }
 
 fn watch_audio() {
-    Win32Context::new(|event, path| match event {
-        AudioSessionEvent::StateChange(state) => {
-            let active = state == SessionState::Active;
-            let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
-                path,
-                is_audio: true,
-                active
-            });
+    thread::spawn(|| {
+        let context = Win32Context::new(|event, path| match event {
+            AudioSessionEvent::StateChange(state) => {
+                let active = state == SessionState::Active;
+                let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
+                    path,
+                    is_audio: true,
+                    active
+                });
+            }
+            _ => {}
+        });
+        loop {
+            if let Ok(event) = WATCHER_STATUS_CHANNEL.lock().1.try_recv() {
+                if event.running {
+                    let list = context.read().get_active_session_filename();
+                    for path in list {
+                        let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
+                            path,
+                            is_audio: true,
+                            active: true
+                        });
+                    }
+                }
+            }
+            thread::sleep(Duration::from_millis(1000 / 60));
         }
-        _ => {}
     });
 }
 
