@@ -1,18 +1,38 @@
-use std::{process::Command, ffi::OsStr, sync::Arc, thread, time::Duration};
+use std::{ffi::OsStr, process::Command, sync::Arc, thread, time::Duration};
 
-use nodio_win32::{Win32Context, AudioSessionEvent, SessionState};
+use anyhow::bail;
+use nodio_win32::{AudioSessionEvent, SessionState, Win32Context};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use windows::{Win32::{Foundation::{HWND, MAX_PATH, POINT, GetLastError}, UI::{WindowsAndMessaging::{GetCursorPos, WindowFromPoint, GetForegroundWindow, GetWindowThreadProcessId, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT, MSG, GetMessageW, TranslateMessage, DispatchMessageW}, Accessibility::{HWINEVENTHOOK, SetWinEventHook, UnhookWinEvent}}, System::Threading::{PROCESS_QUERY_INFORMATION, OpenProcess, PROCESS_VM_READ, QueryFullProcessImageNameW, PROCESS_NAME_WIN32}}, core::PWSTR};
-use anyhow::bail;
+use windows::{
+    core::PWSTR,
+    Win32::{
+        Foundation::{GetLastError, HWND, MAX_PATH, POINT},
+        System::Threading::{
+            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_INFORMATION,
+            PROCESS_VM_READ,
+        },
+        UI::{
+            Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
+            WindowsAndMessaging::{
+                DispatchMessageW, GetCursorPos, GetForegroundWindow, GetMessageW,
+                GetWindowThreadProcessId, TranslateMessage, WindowFromPoint,
+                EVENT_SYSTEM_FOREGROUND, MSG, WINEVENT_OUTOFCONTEXT,
+            },
+        },
+    },
+};
 
-use crate::{Result, watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL, WATCHER_STATUS_CHANNEL}};
+use crate::{
+    watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL, WATCHER_STATUS_CHANNEL},
+    Result,
+};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Program {
     path: String,
     name: String,
-    icon: Vec<u8>
+    icon: Vec<u8>,
 }
 
 fn powershell<S: AsRef<OsStr>>(script: S) -> Result<String> {
@@ -30,7 +50,7 @@ pub fn get_program_list() -> Result<Vec<Program>> {
     Ok(list)
 }
 
- fn get_window_pid(hwnd: HWND) -> u32 {
+fn get_window_pid(hwnd: HWND) -> u32 {
     let mut pid: u32 = 0;
     unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid as *mut u32)) };
     pid
@@ -77,7 +97,6 @@ pub fn get_foreground_program_path() -> Option<String> {
     let hwnd = unsafe { GetForegroundWindow() };
     get_program_path(hwnd)
 }
-
 
 #[derive(Debug)]
 struct Watcher {
@@ -136,7 +155,7 @@ unsafe extern "system" fn win_event_proc(
     let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
         path,
         is_audio: false,
-        active: true
+        active: true,
     });
 }
 
@@ -177,7 +196,7 @@ fn watch_audio() {
                 let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
                     path,
                     is_audio: true,
-                    active
+                    active,
                 });
             }
             _ => {}
@@ -190,7 +209,7 @@ fn watch_audio() {
                         let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
                             path,
                             is_audio: true,
-                            active: true
+                            active: true,
                         });
                     }
                 }
@@ -199,7 +218,6 @@ fn watch_audio() {
         }
     });
 }
-
 
 mod tests {
     use super::*;
@@ -210,7 +228,7 @@ mod tests {
         println!("{:?}", list);
     }
 
-        #[test]
+    #[test]
     fn test_app() {
         if let Err(err) = App::start() {
             println!("watcher error: {}", err);

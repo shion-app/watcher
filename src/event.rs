@@ -3,15 +3,15 @@ use rdev::{listen, Event, EventType, ListenError};
 #[cfg(target_os = "windows")]
 use crate::windows;
 
-use crate::watcher::{WATCHER_EVENT_CHANNEL, WatcherEvent};
+use crate::watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL};
 
 pub fn run() -> Result<(), ListenError> {
-    let  activate =  |path: String| {
+    let activate = |path: String| {
         let _ = WATCHER_EVENT_CHANNEL.lock().0.send(WatcherEvent {
-        path,
-        is_audio: false,
-        active: true
-    });
+            path,
+            is_audio: false,
+            active: true,
+        });
     };
 
     listen(move |event: Event| {

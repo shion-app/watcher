@@ -3,13 +3,13 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use chrono::prelude::*;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 use lazy_static::lazy_static;
 use parking_lot::{Mutex, RwLock};
 use serde::Serialize;
-use tauri::{AppHandle, Runtime, Manager};
-use chrono::prelude::*;
+use tauri::{AppHandle, Manager, Runtime};
 
 use crate::event;
 use crate::timer::Timer;
@@ -29,13 +29,13 @@ static EVENT_STATUS_CHANGED: &'static str = "plugin:shion-watcher://status-chang
 struct WindowStatus {
     path: String,
     active: bool,
-    time: i64
+    time: i64,
 }
 
 pub struct Watcher<R: Runtime> {
     app: AppHandle<R>,
     pool: Mutex<Vec<Program>>,
-    running: RwLock<bool>
+    running: RwLock<bool>,
 }
 
 struct Program {
@@ -52,7 +52,7 @@ pub struct WatcherEvent {
 }
 
 pub struct WatcherStatus {
-    pub running: bool
+    pub running: bool,
 }
 
 impl<R: Runtime> Watcher<R> {
@@ -60,7 +60,7 @@ impl<R: Runtime> Watcher<R> {
         Arc::new(Self {
             app,
             pool: Mutex::new(vec![]),
-            running: RwLock::new(false)
+            running: RwLock::new(false),
         })
     }
 
@@ -145,11 +145,16 @@ impl<R: Runtime> Watcher<R> {
         let mut pool = self.pool.lock();
         let path = pool[index].path.clone();
         pool.remove(index);
-        self.app.emit(EVENT_STATUS_CHANGED, WindowStatus {
-            path: path.clone(),
-            active: false,
-            time: Utc::now().timestamp_millis()
-        }).unwrap();
+        self.app
+            .emit(
+                EVENT_STATUS_CHANGED,
+                WindowStatus {
+                    path: path.clone(),
+                    active: false,
+                    time: Utc::now().timestamp_millis(),
+                },
+            )
+            .unwrap();
         debug!("remove program: {}", path);
     }
 
@@ -157,16 +162,21 @@ impl<R: Runtime> Watcher<R> {
         let mut pool = self.pool.lock();
         let path = program.path.clone();
         pool.push(program);
-        self.app.emit(EVENT_STATUS_CHANGED, WindowStatus {
-            path: path.clone(),
-            active: true,
-            time: Utc::now().timestamp_millis()
-        }).unwrap();
+        self.app
+            .emit(
+                EVENT_STATUS_CHANGED,
+                WindowStatus {
+                    path: path.clone(),
+                    active: true,
+                    time: Utc::now().timestamp_millis(),
+                },
+            )
+            .unwrap();
         debug!("add program: {}", path);
     }
 
     fn reset_timer(&self, index: usize) {
-        let  pool = self.pool.lock();
+        let pool = self.pool.lock();
         let program = &pool[index];
         program.timer.reset();
     }
@@ -175,16 +185,22 @@ impl<R: Runtime> Watcher<R> {
         *self.running.write() = false;
         let mut pool = self.pool.lock();
         pool.clear();
-        let _ = WATCHER_STATUS_CHANNEL.lock().0.send(WatcherStatus { running: false });
+        let _ = WATCHER_STATUS_CHANNEL
+            .lock()
+            .0
+            .send(WatcherStatus { running: false });
     }
 
     pub fn resume(&self) {
         *self.running.write() = true;
-        let _ = WATCHER_STATUS_CHANNEL.lock().0.send(WatcherStatus { running: true });
+        let _ = WATCHER_STATUS_CHANNEL
+            .lock()
+            .0
+            .send(WatcherStatus { running: true });
     }
 
     pub fn is_active(&self, path: String) -> bool {
-        let  pool = self.pool.lock();
+        let pool = self.pool.lock();
         pool.iter().find(|p| p.path == path).is_some()
     }
 }

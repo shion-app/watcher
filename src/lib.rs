@@ -1,9 +1,13 @@
 use tauri::{
-  plugin::{Builder, TauriPlugin},
-  Manager, Runtime,
+    plugin::{Builder, TauriPlugin},
+    Manager, Runtime,
 };
 
-use std::{collections::HashMap, sync::{Mutex, Arc}, thread};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    thread,
+};
 
 #[macro_use]
 extern crate log;
@@ -17,10 +21,10 @@ mod mobile;
 
 mod commands;
 mod error;
-mod models;
 mod event;
-mod watcher;
+mod models;
 mod timer;
+mod watcher;
 
 use watcher::Watcher;
 
@@ -35,51 +39,49 @@ use desktop::ShionWatcher;
 use mobile::ShionWatcher;
 
 struct MyState<R: Runtime> {
-  watcher: Arc<Watcher<R>>
+    watcher: Arc<Watcher<R>>,
 }
 
 /// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the shion-watcher APIs.
 pub trait ShionWatcherExt<R: Runtime> {
-  fn shion_watcher(&self) -> &ShionWatcher<R>;
+    fn shion_watcher(&self) -> &ShionWatcher<R>;
 }
 
 impl<R: Runtime, T: Manager<R>> crate::ShionWatcherExt<R> for T {
-  fn shion_watcher(&self) -> &ShionWatcher<R> {
-    self.state::<ShionWatcher<R>>().inner()
-  }
+    fn shion_watcher(&self) -> &ShionWatcher<R> {
+        self.state::<ShionWatcher<R>>().inner()
+    }
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("shion-watcher")
-    .invoke_handler(tauri::generate_handler![
-      commands::get_program_list,
-      commands::suspend,
-      commands::resume,
-      commands::is_active,
-      ])
-    .setup(|app, api| {
-      #[cfg(mobile)]
-      let shion_watcher = mobile::init(app, api)?;
-      #[cfg(desktop)]
-      let shion_watcher = desktop::init(app, api)?;
-      app.manage(shion_watcher);
+    Builder::new("shion-watcher")
+        .invoke_handler(tauri::generate_handler![
+            commands::get_program_list,
+            commands::suspend,
+            commands::resume,
+            commands::is_active,
+        ])
+        .setup(|app, api| {
+            #[cfg(mobile)]
+            let shion_watcher = mobile::init(app, api)?;
+            #[cfg(desktop)]
+            let shion_watcher = desktop::init(app, api)?;
+            app.manage(shion_watcher);
 
-      let watcher = Watcher::new(app.clone());
+            let watcher = Watcher::new(app.clone());
 
-      #[cfg(desktop)]
-      thread::spawn({
-        let watcher = watcher.clone();
-        move || {
-          watcher.run();
-      }
-      });
+            #[cfg(desktop)]
+            thread::spawn({
+                let watcher = watcher.clone();
+                move || {
+                    watcher.run();
+                }
+            });
 
-      // manage state so it is accessible by the commands
-      app.manage(MyState {
-        watcher
-      });
-      Ok(())
-    })
-    .build()
+            // manage state so it is accessible by the commands
+            app.manage(MyState { watcher });
+            Ok(())
+        })
+        .build()
 }
