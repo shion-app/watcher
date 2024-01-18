@@ -1,8 +1,7 @@
-use std::{ffi::OsStr, process::Command, sync::Arc, thread, time::Duration};
+use std::{ffi::OsStr, process::Command, thread, time::Duration, os::windows::process::CommandExt};
 
 use anyhow::bail;
 use nodio_win32::{AudioSessionEvent, SessionState, Win32Context};
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use windows::{
     core::PWSTR,
@@ -10,7 +9,7 @@ use windows::{
         Foundation::{GetLastError, HWND, MAX_PATH, POINT},
         System::Threading::{
             OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_INFORMATION,
-            PROCESS_VM_READ,
+            PROCESS_VM_READ, CREATE_NO_WINDOW,
         },
         UI::{
             Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
@@ -39,6 +38,7 @@ fn powershell<S: AsRef<OsStr>>(script: S) -> Result<String> {
     let mut command = Command::new("powershell");
     command.arg("-c");
     command.arg(script);
+    command.creation_flags(CREATE_NO_WINDOW.0);
     let output = command.output()?.stdout;
     let s = String::from_utf8_lossy(&output).to_string();
     Ok(s)
