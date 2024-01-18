@@ -13,7 +13,6 @@ tauri = { version = "2.0.0-alpha.20" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
-rdev = "0.5"
 log = "^0.4"
 anyhow = "1.0"
 parking_lot = "^0.12"
@@ -24,6 +23,9 @@ chrono = "^0.4"
 [target."cfg(target_os = \"windows\")".dependencies]
 windows = "0.52.0"
 nodio-win32 = { git = "https://github.com/hanaTsuk1/nodio" }
+
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+rdev = "0.5"
 
 [build-dependencies]
 tauri-build = { version = "2.0.0-alpha.13" }
