@@ -25,6 +25,7 @@ mod event;
 mod models;
 mod timer;
 mod watcher;
+mod shared;
 
 use watcher::Watcher;
 

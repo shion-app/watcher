@@ -1,8 +1,10 @@
 use tauri::{command, AppHandle, Runtime, State, Window};
 
+#[cfg(target_os = "windows")]
+use crate::windows;
+
 use crate::{
-    windows::{self, Program},
-    MyState, Result,
+    MyState, Result, shared::Program,
 };
 
 #[command]

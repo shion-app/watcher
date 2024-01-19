@@ -24,15 +24,9 @@ use windows::{
 
 use crate::{
     watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL, WATCHER_STATUS_CHANNEL},
+    shared::Program,
     Result,
 };
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Program {
-    path: String,
-    name: String,
-    icon: Vec<u8>,
-}
 
 fn powershell<S: AsRef<OsStr>>(script: S) -> Result<String> {
     let mut command = Command::new("powershell");
