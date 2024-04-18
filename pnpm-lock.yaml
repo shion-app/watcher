@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@tauri-apps/api':
-    specifier: ^2.0.0-alpha.11
-    version: 2.0.0-alpha.13
+    specifier: ^2.0.0-beta.8
+    version: 2.0.0-beta.8
   tslib:
     specifier: ^2.1.0
     version: 2.6.2
@@ -128,8 +128,8 @@ packages:
       rollup: 2.75.6
     dev: true
 
-  /@tauri-apps/api@2.0.0-alpha.13:
-    resolution: {integrity: sha512-sGgCkFahF3OZAHoGN5Ozt9WK7wJlbVZSgWpPQKNag4nSOX1+Py6VDRTEWriiJHDiV+gg31CWHnNXRy6TFoZmdA==}
+  /@tauri-apps/api@2.0.0-beta.8:
+    resolution: {integrity: sha512-fN5u+9HsSfhRaXGOdD2kPGbqDgyX+nkm1XF/4d/LNuM4WiNfvHjjRAqWQYBhQsg1aF9nsTPmSW+tmy+Yn5T5+A==}
     engines: {node: '>= 18', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
     dev: false
 

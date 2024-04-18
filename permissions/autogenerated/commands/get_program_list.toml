@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-get-program-list"
+description = "Enables the get_program_list command without any pre-configured scope."
+commands.allow = ["get_program_list"]
+
+[[permission]]
+identifier = "deny-get-program-list"
+description = "Denies the get_program_list command without any pre-configured scope."
+commands.deny = ["get_program_list"]

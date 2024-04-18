@@ -1,5 +1,5 @@
 <script>
-  import { getProgramList, onWindowActivate } from 'tauri-plugin-shion-watcher-api'
+  import { getProgramList } from 'tauri-plugin-shion-watcher-api'
 
  const createIconBlob = (buffer) => new Blob([new Uint8Array(buffer)], { type: 'image/png' })
 
@@ -14,13 +14,6 @@
       }
     })
   })()
-  
- 
-  onWindowActivate(({ payload }) => {
-    console.log(payload);
-  })
-
- 
 
 </script>
 
