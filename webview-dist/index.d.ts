@@ -10,6 +10,7 @@ interface WindowStatus {
     time: number;
 }
 export declare function getProgramList(): Promise<Program[]>;
+export declare function getProgramByPath(path: string): Promise<Program>;
 export declare function suspend(): Promise<unknown>;
 export declare function resume(): Promise<unknown>;
 export declare function isActive(path: string): Promise<boolean>;

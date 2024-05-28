@@ -1,5 +1,5 @@
 <script>
-  import { getProgramList } from 'tauri-plugin-shion-watcher-api'
+  import { getProgramByPath, getProgramList } from 'tauri-plugin-shion-watcher-api'
 
  const createIconBlob = (buffer) => new Blob([new Uint8Array(buffer)], { type: 'image/png' })
 
@@ -7,7 +7,8 @@
   
   ;(async () => {
     const list = await getProgramList()
-    programList = list.map(p => {
+    const program = await getProgramByPath("C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe")
+    programList = [program, ...list].map(p => {
       return {
         ...p,
         icon: URL.createObjectURL(createIconBlob(p.icon))

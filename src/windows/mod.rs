@@ -1,28 +1,32 @@
-use std::{
-    collections::HashSet, os::windows::ffi::OsStrExt, path::Path, thread, time::Duration
-};
+use std::{collections::HashSet, os::windows::ffi::OsStrExt, path::Path, thread, time::Duration};
 
 use anyhow::{anyhow, bail};
 use nodio_win32::{AudioSessionEvent, SessionState, Win32Context};
 use windows::{
     core::{w, PCWSTR, PWSTR},
     Win32::{
-        Foundation::{GetLastError, BOOL, HWND, LPARAM, MAX_PATH, POINT}, Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW}, System::Threading::{
-            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
-            PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
-        }, UI::{
+        Foundation::{GetLastError, BOOL, HWND, LPARAM, MAX_PATH, POINT},
+        Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW},
+        System::Threading::{
+            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_INFORMATION,
+            PROCESS_VM_READ,
+        },
+        UI::{
             Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
             WindowsAndMessaging::{
-                DispatchMessageW, EnumWindows, GetCursorPos, GetForegroundWindow, GetMessageW, GetWindow, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible, TranslateMessage, WindowFromPoint, EVENT_SYSTEM_FOREGROUND, GWL_EXSTYLE, GW_OWNER, MSG, WINEVENT_OUTOFCONTEXT, WS_EX_TOPMOST
+                DispatchMessageW, EnumWindows, GetCursorPos, GetForegroundWindow, GetMessageW,
+                GetWindow, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
+                TranslateMessage, WindowFromPoint, EVENT_SYSTEM_FOREGROUND, GWL_EXSTYLE, GW_OWNER,
+                MSG, WINEVENT_OUTOFCONTEXT, WS_EX_TOPMOST,
             },
-        }
+        },
     },
 };
 
 use crate::{
     shared::Program,
     watcher::{WatcherEvent, WATCHER_EVENT_CHANNEL, WATCHER_STATUS_CHANNEL},
-    Result
+    Result,
 };
 
 mod icons;
@@ -33,27 +37,31 @@ pub fn get_program_list() -> Result<Vec<Program>> {
 
     for pid in processes {
         if let Some(path) = get_program_path(pid) {
-            let file_path = Path::new(&path);
-            let stem = file_path.file_stem().unwrap().to_str().unwrap().to_string();
-            let name =  match get_display_name(file_path)  {
-                Ok(name) => if name.is_empty() {
-                    stem
-                } else {
-                    name
-                },
-                Err(_) => stem
-            };
-            let mut icon_cache = icons::ICON_CACHE.lock().unwrap();
-            let icon = icon_cache.get_png(file_path.to_path_buf())?.to_vec();
-            programs.push(Program {
-                path,
-                name,
-                icon,
-            });
+            let program = get_program_by_path(path)?;
+            programs.push(program);
         }
     }
 
     Ok(programs)
+}
+
+pub fn get_program_by_path(path: String) -> Result<Program> {
+    let file_path = Path::new(&path);
+
+    let stem = file_path.file_stem().unwrap().to_str().unwrap().to_string();
+    let name = match get_display_name(file_path) {
+        Ok(name) => {
+            if name.is_empty() {
+                stem
+            } else {
+                name
+            }
+        }
+        Err(_) => stem,
+    };
+    let mut icon_cache = icons::ICON_CACHE.lock().unwrap();
+    let icon = icon_cache.get_png(file_path.to_path_buf())?.to_vec();
+    Ok(Program { path, name, icon })
 }
 
 fn get_display_name(executable: &Path) -> anyhow::Result<String> {

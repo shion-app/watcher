@@ -13,6 +13,7 @@
     "resources:default",
     "menu:default",
     "tray:default",
-    "shion-watcher:allow-get-program-list"
+    "shion-watcher:allow-get-program-list",
+    "shion-watcher:allow-get-program-by-path"
   ]
 }

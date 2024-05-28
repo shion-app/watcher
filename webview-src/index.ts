@@ -17,6 +17,12 @@ export function getProgramList() {
   return invoke<Array<Program>>('plugin:shion-watcher|get_program_list')
 }
 
+export function getProgramByPath(path: string) {
+  return invoke<Program>('plugin:shion-watcher|get_program_by_path', {
+    path
+  })
+}
+
 export function suspend() {
   return invoke('plugin:shion-watcher|suspend')
 }

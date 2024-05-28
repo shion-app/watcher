@@ -59,6 +59,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("shion-watcher")
         .invoke_handler(tauri::generate_handler![
             commands::get_program_list,
+            commands::get_program_by_path,
             commands::suspend,
             commands::resume,
             commands::is_active,
