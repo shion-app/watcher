@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Program {
-    path: String,
-    name: String,
-    icon: Vec<u8>,
+    pub path: String,
+    pub name: String,
+    pub icon: Vec<u8>,
 }
