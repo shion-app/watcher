@@ -38,7 +38,10 @@ pub fn get_program_list() -> Result<Vec<Program>> {
     for pid in processes {
         if let Some(path) = get_program_path(pid) {
             let program = get_program_by_path(path)?;
-            programs.push(program);
+            let has = programs.iter().position(|p: &Program| p.path == program.path).is_some();
+            if !has {
+                programs.push(program);
+            }
         }
     }
 
