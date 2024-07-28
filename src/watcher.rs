@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -9,7 +8,7 @@ use crossbeam_channel::Sender;
 use lazy_static::lazy_static;
 use parking_lot::{Mutex, RwLock};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::event;
 use crate::timer::Timer;
