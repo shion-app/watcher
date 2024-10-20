@@ -76,6 +76,18 @@ impl<R: Runtime> Watcher<R> {
             }
         });
 
+        let _ = Timer::interval(Duration::from_secs(30), {
+            let watcher = Arc::clone(&self);
+            move || {
+                debug!("------------watcher status--------------");
+                let pool = watcher.pool.lock();
+                for Program { path, is_audio, .. } in pool.iter() {
+                    debug!("path: {}, is_audio: {}", path, is_audio);
+                }
+                debug!("----------------------------------------");
+            }
+        });
+
         loop {
             if let Ok(event) = WATCHER_EVENT_CHANNEL.lock().1.try_recv() {
                 if !*self.running.read() {
@@ -118,7 +130,7 @@ impl<R: Runtime> Watcher<R> {
             for i in list {
                 self.remove(i)
             }
-            let timer = Timer::new(Duration::from_secs(60), {
+            let timer = Timer::timeout(Duration::from_secs(60), {
                 let watcher = Arc::clone(&self);
                 let path = event.path.clone();
                 move || {

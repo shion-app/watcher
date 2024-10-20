@@ -1,49 +1,54 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use parking_lot::Mutex;
-
 pub struct Timer {
-    start_time: Arc<Mutex<Instant>>,
-    done: Arc<AtomicBool>,
+    start: Arc<Mutex<Instant>>,
 }
 
 impl Timer {
-    pub fn new<F>(timeout: Duration, callback: F) -> Self
+    pub fn timeout<F>(duration: Duration, callback: F) -> Self
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn() + Send + 'static,
     {
-        let start_time = Arc::new(Mutex::new(Instant::now()));
-        let done = Arc::new(AtomicBool::new(false));
+        let start = Arc::new(Mutex::new(Instant::now()));
 
-        thread::spawn({
-            let start_time = Arc::clone(&start_time);
-            let done = done.clone();
-            move || {
-                while !done.load(Ordering::Relaxed) {
-                    let elapsed_time = Instant::now() - *start_time.lock();
-                    if elapsed_time >= timeout {
-                        callback();
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(1000 / 60));
-                }
+        let timer_start = Arc::clone(&start);
+        thread::spawn(move || loop {
+            let elapsed = timer_start.lock().unwrap().elapsed();
+            if elapsed >= duration {
+                callback();
+                break;
             }
+            thread::sleep(Duration::from_millis(1000 / 60));
         });
 
-        Self { start_time, done }
+        Timer { start }
+    }
+
+    pub fn interval<F>(duration: Duration, callback: F) -> Self
+    where
+        F: Fn() + Send + 'static,
+    {
+        let start = Arc::new(Mutex::new(Instant::now()));
+
+        let timer_start = Arc::clone(&start);
+        thread::spawn(move || loop {
+            let mut start = timer_start.lock().unwrap();
+            let elapsed = start.elapsed();
+            if elapsed >= duration {
+                callback();
+                *start = Instant::now();
+            }
+            thread::sleep(Duration::from_millis(1000 / 60));
+        });
+
+        Timer { start }
     }
 
     pub fn reset(&self) {
-        *self.start_time.lock() = Instant::now();
-    }
-}
-
-impl Drop for Timer {
-    fn drop(&mut self) {
-        self.done.store(true, Ordering::Relaxed);
+        let mut start = self.start.lock().unwrap();
+        *start = Instant::now();
     }
 }
 
@@ -51,16 +56,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_run() {
-        let timer = Timer::new(Duration::from_secs(5), || {
-            println!("end");
-            println!("{:?}", Instant::now());
+    fn test_timeout() {
+        let timer = Timer::timeout(Duration::from_secs(5), || {
+            println!("end: {:?}", Instant::now());
         });
-        println!("{:?}", Instant::now());
-        println!("start");
+        println!("start: {:?}", Instant::now());
         thread::sleep(Duration::from_secs(1));
         println!("restart {:?}", Instant::now());
         timer.reset();
+        loop {}
+    }
+
+    #[test]
+    fn test_interval() {
+        let timer = Timer::interval(Duration::from_secs(5), || {
+            println!("now: {:?}", Instant::now());
+        });
         loop {}
     }
 }
