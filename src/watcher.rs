@@ -76,7 +76,7 @@ impl<R: Runtime> Watcher<R> {
             }
         });
 
-        let _ = Timer::interval(Duration::from_secs(30), {
+        let timer = Timer::new(Duration::from_secs(30), {
             let watcher = Arc::clone(&self);
             move || {
                 debug!("------------watcher status--------------");
@@ -87,6 +87,7 @@ impl<R: Runtime> Watcher<R> {
                 debug!("----------------------------------------");
             }
         });
+        timer.interval();
 
         loop {
             if let Ok(event) = WATCHER_EVENT_CHANNEL.lock().1.try_recv() {
@@ -104,9 +105,16 @@ impl<R: Runtime> Watcher<R> {
         let index = pool.iter().position(|p| p.path == event.path);
         if !event.active {
             if let Some(index) = index {
-                if event.is_audio || !pool[index].is_audio {
+                if !event.is_audio && !pool[index].is_audio {
                     drop(pool);
                     self.remove(index);
+                } else {
+                    let program = &mut pool[index];
+                    if event.is_audio {
+                        program.is_audio = false;
+                    }
+                    drop(pool);
+                    self.reset_timer(index);
                 }
             }
             return;
@@ -130,7 +138,7 @@ impl<R: Runtime> Watcher<R> {
             for i in list {
                 self.remove(i)
             }
-            let timer = Timer::timeout(Duration::from_secs(60), {
+            let timer = Timer::new(Duration::from_secs(60), {
                 let watcher = Arc::clone(&self);
                 let path = event.path.clone();
                 move || {
@@ -144,6 +152,7 @@ impl<R: Runtime> Watcher<R> {
                     }
                 }
             });
+            timer.timeout();
             self.add(Program {
                 path: event.path,
                 is_audio: event.is_audio,
